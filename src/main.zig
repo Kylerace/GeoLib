@@ -8,6 +8,7 @@ const bit_utils = @import("utils/bit_utils.zig");
 const count_bits = bit_utils.count_bits;
 
 const math_utils = @import("utils/math_utils.zig");
+const string_utils = @import("utils/string_utils.zig");
 
 const algebra = @import("algebra.zig");
 const GAlgebraCompiledAlias = algebra.GAlgebraCompiledAlias;
@@ -188,7 +189,13 @@ pub const MVecArgs = struct {
         const info_args: type = _alg_info.GAlgebraInfoArgs;
         const alg_info: type = GAlgebraInfo(info_args.__dual, info_args.__basis, info_args.__ordering, info_args.__aliases);
 
-        return alg_info.aliases_by_subset[subset];
+        //so that we dont have any blades that dont exist in our algebra.
+        var mask: usize = 0;
+        for(0..alg_info.basis_len) |blade| {
+            mask |= (1 << blade);
+        }
+
+        return alg_info.aliases_by_subset[subset & mask];
     }
 
     fn try_find_alias_from_values(comptime _alg_info: type, values: []const usize) ?GAlgebraCompiledAlias {
@@ -1782,23 +1789,16 @@ pub fn main() !void {
     const line_alias: algebra.GAlgebraAlias = .{.name = "Line", .ordering = "px,py,pz,yz,xz,xy"};
     const plane_alias: algebra.GAlgebraAlias = .{.name = "Plane", .ordering = "p,x,y,z"};
     const galg = GAlgebraInfo(true, "0p,+x,+y,+z", ordering, &.{point_alias, line_alias, plane_alias});
-    const MVecT = MVecSubset(galg, f64, .{.find_alias = false, .values = &.{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}}); //s,p,x,y,z
+    const MVecT = MVecSubset(galg, f64, .{.find_alias = false, .subset = ~@as(usize, 0)});//.values = &.{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}}); //s,p,x,y,z
     _ = MVecT;
-
-    //@compileLog(comptimePrint("MVecT subset: {b}", .{MVecT.subset})`);
-    //const mv1: MVecT = MVecT.init_raw(.{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0});
-    //const mv2: MVecT = MVecT.init_raw(.{3.2, -4.1, 1.2, 7.1, -0.5, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0});
-    ////@compileLog(comptimePrint("mv1: {}, mv2: {}", .{mv1, mv2}));
-    //const mv3 = mv1.gp(mv2, null);
-    //debug.print("{} * {} = \n\t{}\n\t ({} * {} = \n\t\t{})\n", .{mv1, mv2, mv3, mv1.terms, mv2.terms, mv3.terms});
 
     const Plane = MVecSubset(galg, f64, .{.alias_name = "Plane"});
     const Line = MVecSubset(galg, f64, .{.alias_name = "Line"});
     const Point = MVecSubset(galg, f64, .{.alias_name = "Point"});
 
-    const plane1: Plane = Plane{.terms = .{1, 1, 0, 0}};//Plane.init_counting_up_from(1).normalize_by_blade(1);
-    const plane2: Plane = Plane{.terms = .{1, 0, 1, 0}};//Plane.init_counting_up_from(5).normalize_by_blade(1);//.set_vals(&.{.{1, 6}, .{2, 1}, .{3, 9}});
-    const plane3: Plane = Plane{.terms = .{1, 0, 0, 1}};//Plane.init_counting_up_from(9).normalize_by_blade(1);
+    const plane1: Plane = Plane{.terms = .{1, 1, 0, 0}};
+    const plane2: Plane = Plane{.terms = .{1, 0, 1, 0}};
+    const plane3: Plane = Plane{.terms = .{1, 0, 0, 1}};
 
     const line1: Line = plane1.meet(plane2, null);
     const line2: Line = Line.init_counting_up_from(1);
